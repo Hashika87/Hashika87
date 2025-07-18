@@ -1,0 +1,66 @@
+library(ggplot2)
+library(caret)
+library(dplyr)
+library(pROC)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(randomForest)
+
+data = read.csv("../input/bank-marketing-dataset/bank.csv")
+
+colnames(data)
+
+# Check structure
+str(data)
+
+# Convert all chr columns to factor
+data[sapply(data, is.character)] = lapply(data[sapply(data, is.character)], as.factor)
+
+# Check structure
+str(data)
+
+# Check Null value counts of each column
+colSums(is.na(data))
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Create training and testing indices
+sample_index = sample(1:nrow(data), 0.8 * nrow(data))
+
+# Split the data
+train_data = data[sample_index,  ]
+test_data = data[-sample_index,  ]
+
+# Build logistic regression model
+model = glm(deposit ~ ., data = train_data, family = "binomial")
+
+# View summary of the model
+summary(model)
+
+# Predict on test data
+predicted_prob = predict(model, newdata = test_data, type = "response")
+
+# Convert probabilities to class labels (yes/No)
+predicted_class = ifelse(predicted_prob > 0.5, "yes", "no")
+
+# Convert to factor with same levels as actual
+predicted_class = factor(predicted_class, levels = levels(test_data$deposit))
+
+# Confusion matrix
+confusionMatrix(predicted_class, test_data$deposit)
+
+# ROC Curve
+roc_obj = roc(test_data$deposit, predicted_prob)
+plot(roc_obj)
+auc(roc_obj)
+
+# Decision Tree
+tree_model = rpart(deposit ~ ., data = train_data, method = "class")
+rpart.plot(tree_model)
+
+# Random Forest
+rf_model = randomForest(deposit ~ ., data = train_data)
+rf_pred = predict(rf_model, newdata = test_data)
+confusionMatrix(rf_pred, test_data$deposit)
